@@ -7,7 +7,25 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256
+        self.R0 = [0] * 8
+        self.R1 = [0] * 8
+        self.R2 = [0] * 8
+        self.R3 = [0] * 8
+        self.R4 = [0] * 8
+        self.R5 = [0] * 8  # IM-inrerupt mask
+        self.R6 = [0] * 8  # IS-interupt status
+        self.R7 = [0] * 8  # SP-stack pointer
+        self.address = 0  # PC
+        self.IR = [0] * 8
+        self.MAR = 0
+        # FL? Is this also [0] * 8?
+
+    def ram_read(self, MAR):
+        return self.ram[MAR]
+
+    def ram_write(self, MAR, MDR):
+        self.ram[MAR] = MDR
 
     def load(self):
         """Load a program into memory."""
