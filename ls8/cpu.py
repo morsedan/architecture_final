@@ -28,6 +28,7 @@ class CPU:
         self.commands[0b10000010] = "LDI"
         self.commands[0b01000111] = "PRN"
         self.commands[0b00000001] = "HLT"
+        self.commands[0b10100010] = "MUL"
 
     def ram_read(self, MAR):
         return self.ram[MAR]
@@ -62,7 +63,7 @@ class CPU:
         #     0b00000000,
         #     0b00000001, # HLT
         # ]
-        print("Program:", program)
+        # print("Program:", program)
         for instruction in instructions:
             self.ram[address] = instruction
             address += 1
@@ -72,8 +73,10 @@ class CPU:
         """ALU operations."""
 
         if op == "ADD":
-            self.reg[reg_a] += self.reg[reg_b]
+            self.registers[reg_a] += self.registers[reg_b]
         #elif op == "SUB": etc
+        elif op == "MUL":
+            self.registers[reg_a] *= self.registers[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -93,7 +96,7 @@ class CPU:
         ), end='')
 
         for i in range(8):
-            print(" %02X" % self.reg[i], end='')
+            print(" %02X" % self.registers[i], end='')
 
         print()
 
@@ -101,6 +104,7 @@ class CPU:
         """Run the CPU."""
         while self.running:
             IR = self.ram[self.PC]
+            # print(self.commands[IR])
             if self.commands[IR] == "LDI":
                 register = self.ram[self.PC + 1]
                 value = self.ram[self.PC + 2]
@@ -114,6 +118,11 @@ class CPU:
                 self.running = False
                 # self.PC += 1
                 sys.exit(0)
+            elif self.commands[IR] == "MUL":
+                first_reg = self.ram[self.PC + 1]
+                second_reg = self.ram[self.PC + 2]
+                self.alu(self.commands[IR], first_reg, second_reg)
+                self.PC += 3
             else:
                 print(f'unknown instruction {IR} at address {self.PC}')
                 sys.exit(1)
