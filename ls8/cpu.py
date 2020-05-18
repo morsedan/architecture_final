@@ -9,19 +9,25 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
+        self.running = True
         self.ram = [0] * 256
-        self.R0 = [0] * 8
-        self.R1 = [0] * 8
-        self.R2 = [0] * 8
-        self.R3 = [0] * 8
-        self.R4 = [0] * 8
-        self.R5 = [0] * 8  # IM-interrupt mask
-        self.R6 = [0] * 8  # IS-interrupt status
-        self.R7 = [0] * 8  # SP-stack pointer
-        self.address = 0  # PC
-        self.IR = [0] * 8
-        self.MAR = 0
-        # FL? Is this also [0] * 8?
+        self.registers = [0] * 8
+        # self.R0 = [0] * 8
+        # self.R1 = [0] * 8
+        # self.R2 = [0] * 8
+        # self.R3 = [0] * 8
+        # self.R4 = [0] * 8
+        # self.R5 = [0] * 8  # IM-interrupt mask
+        # self.R6 = [0] * 8  # IS-interrupt status
+        # self.R7 = [0] * 8  # SP-stack pointer
+        self.PC = 0  # PC
+        # self.IR = [0] * 8
+        # self.MAR = 0
+        self.commands = {}
+        self.FL = [0] * 8
+        self.commands[0b10000010] = "LDI"
+        self.commands[0b01000111] = "PRN"
+        self.commands[0b00000001] = "HLT"
 
     def ram_read(self, MAR):
         return self.ram[MAR]
@@ -29,24 +35,35 @@ class CPU:
     def ram_write(self, MAR, MDR):
         self.ram[MAR] = MDR
 
-    def load(self):
+    def load(self, program):
         """Load a program into memory."""
 
         address = 0
 
+        with open(program) as p:
+            data = p.read()
+
+        lines = data.split("\n")
+        instructions = []
+        for line in lines:
+            new_line = line.split("#")[0].strip()
+            if new_line == "":
+                continue
+            new_line = int(new_line, 2)
+            instructions.append(new_line)
         # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
-
-        for instruction in program:
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
+        print("Program:", program)
+        for instruction in instructions:
             self.ram[address] = instruction
             address += 1
 
@@ -82,4 +99,21 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        pass
+        while self.running:
+            IR = self.ram[self.PC]
+            if self.commands[IR] == "LDI":
+                register = self.ram[self.PC + 1]
+                value = self.ram[self.PC + 2]
+                self.registers[register] = value
+                self.PC += 3
+            elif self.commands[IR] == "PRN":
+                value = self.registers[self.ram[self.PC + 1]]
+                print(value)
+                self.PC += 2
+            elif self.commands[IR] == "HLT":
+                self.running = False
+                # self.PC += 1
+                sys.exit(0)
+            else:
+                print(f'unknown instruction {IR} at address {self.PC}')
+                sys.exit(1)
