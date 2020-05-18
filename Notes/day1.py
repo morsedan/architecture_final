@@ -119,6 +119,6 @@ while running:
     # if command is non recognizable
     #     crash :(
     else:
-        print(F"Unknown instruction {command}")
-        sys.exit()
+        print(f"Unknown instruction {command}, at address {pc}")
+        sys.exit(1)
 

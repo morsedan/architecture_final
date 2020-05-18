@@ -1,7 +1,9 @@
 """CPU functionality."""
 
 import sys
-
+"""
+the spec tells you what numbers = what instructions
+"""
 class CPU:
     """Main CPU class."""
 
@@ -13,8 +15,8 @@ class CPU:
         self.R2 = [0] * 8
         self.R3 = [0] * 8
         self.R4 = [0] * 8
-        self.R5 = [0] * 8  # IM-inrerupt mask
-        self.R6 = [0] * 8  # IS-interupt status
+        self.R5 = [0] * 8  # IM-interrupt mask
+        self.R6 = [0] * 8  # IS-interrupt status
         self.R7 = [0] * 8  # SP-stack pointer
         self.address = 0  # PC
         self.IR = [0] * 8
