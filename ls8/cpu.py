@@ -25,10 +25,10 @@ class CPU:
         # self.MAR = 0
         self.commands = {}
         self.FL = [0] * 8
-        self.commands[0b10000010] = "LDI"
-        self.commands[0b01000111] = "PRN"
-        self.commands[0b00000001] = "HLT"
-        self.commands[0b10100010] = "MUL"
+        self.commands[0b10000010] = self.LDI  # "LDI"
+        self.commands[0b01000111] = self.PRN  # "PRN"
+        self.commands[0b00000001] = self.HLT  # "HLT"
+        self.commands[0b10100010] = self.MUL  # "MUL"
 
     def ram_read(self, MAR):
         return self.ram[MAR]
@@ -40,7 +40,7 @@ class CPU:
         """Load a program into memory."""
 
         address = 0
-
+        # print("load")
         with open(program) as p:
             data = p.read()
 
@@ -64,9 +64,11 @@ class CPU:
         #     0b00000001, # HLT
         # ]
         # print("Program:", program)
+        # print("RAM", self.ram)
         for instruction in instructions:
             self.ram[address] = instruction
             address += 1
+        # print("RAM", self.ram)
 
 
     def alu(self, op, reg_a, reg_b):
@@ -104,25 +106,57 @@ class CPU:
         """Run the CPU."""
         while self.running:
             IR = self.ram[self.PC]
-            # print(self.commands[IR])
-            if self.commands[IR] == "LDI":
-                register = self.ram[self.PC + 1]
-                value = self.ram[self.PC + 2]
-                self.registers[register] = value
-                self.PC += 3
-            elif self.commands[IR] == "PRN":
-                value = self.registers[self.ram[self.PC + 1]]
-                print(value)
-                self.PC += 2
-            elif self.commands[IR] == "HLT":
-                self.running = False
-                # self.PC += 1
-                sys.exit(0)
-            elif self.commands[IR] == "MUL":
-                first_reg = self.ram[self.PC + 1]
-                second_reg = self.ram[self.PC + 2]
-                self.alu(self.commands[IR], first_reg, second_reg)
-                self.PC += 3
+            # print("run", IR)
+            if IR in self.commands:
+                # print("running")
+                self.commands[IR]()
+            # if self.commands[IR] == "LDI":
+            #     register = self.ram[self.PC + 1]
+            #     value = self.ram[self.PC + 2]
+            #     self.registers[register] = value
+            #     self.PC += 3
+            # elif self.commands[IR] == "PRN":
+            #     value = self.registers[self.ram[self.PC + 1]]
+            #     print(value)
+            #     self.PC += 2
+            # elif self.commands[IR] == "HLT":
+            #     self.running = False
+            #     # self.PC += 1
+            #     sys.exit(0)
+            # elif self.commands[IR] == "MUL":
+            #     first_reg = self.ram[self.PC + 1]
+            #     second_reg = self.ram[self.PC + 2]
+            #     self.alu(self.commands[IR], first_reg, second_reg)
+            #     self.PC += 3
             else:
                 print(f'unknown instruction {IR} at address {self.PC}')
                 sys.exit(1)
+
+    def LDI(self):
+        # print("LDI", self.PC)
+        register = self.ram[self.PC + 1]
+        # print(register)
+        value = self.ram[self.PC + 2]
+        # print(value, self.PC + 2)
+        self.registers[register] = value
+        # print(self.registers[register])
+        self.PC += 3
+
+    def PRN(self):
+        # print("PRN")
+        value = self.registers[self.ram[self.PC + 1]]
+        print(value)
+        self.PC += 2
+
+    def HLT(self):
+        # print("HLT")
+        self.running = False
+        # self.PC += 1
+        sys.exit(0)
+
+    def MUL(self):
+        # print("MUL")
+        first_reg = self.ram[self.PC + 1]
+        second_reg = self.ram[self.PC + 2]
+        self.alu("MUL", first_reg, second_reg)
+        self.PC += 3
