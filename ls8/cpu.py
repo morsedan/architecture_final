@@ -12,6 +12,7 @@ class CPU:
         self.running = True
         self.ram = [0] * 256
         self.registers = [0] * 8
+        self.FL = [0] * 8
         # self.R0 = [0] * 8
         # self.R1 = [0] * 8
         # self.R2 = [0] * 8
@@ -20,15 +21,22 @@ class CPU:
         # self.R5 = [0] * 8  # IM-interrupt mask
         # self.R6 = [0] * 8  # IS-interrupt status
         # self.R7 = [0] * 8  # SP-stack pointer
-        self.PC = 0  # PC
+
         # self.IR = [0] * 8
         # self.MAR = 0
         self.commands = {}
-        self.FL = [0] * 8
-        self.commands[0b10000010] = self.LDI  # "LDI"
-        self.commands[0b01000111] = self.PRN  # "PRN"
-        self.commands[0b00000001] = self.HLT  # "HLT"
-        self.commands[0b10100010] = self.MUL  # "MUL"
+
+        self.PC = 0  # PC
+        self.registers[7] = 0xF4
+
+        self.commands[0b10000010] = self.LDI
+        self.commands[0b01000111] = self.PRN
+        self.commands[0b00000001] = self.HLT
+        self.commands[0b10100000] = self.ADD
+        self.commands[0b10100010] = self.MUL
+        self.commands[0b01000101] = self.PUSH
+        self.commands[0b01000110] = self.POP
+
 
     def ram_read(self, MAR):
         return self.ram[MAR]
@@ -69,7 +77,6 @@ class CPU:
             self.ram[address] = instruction
             address += 1
         # print("RAM", self.ram)
-
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -142,17 +149,40 @@ class CPU:
         # print(self.registers[register])
         self.PC += 3
 
-    def PRN(self):
-        # print("PRN")
-        value = self.registers[self.ram[self.PC + 1]]
-        print(value)
+    def PUSH(self):
+        if self.registers[7] <= self.PC + 1:
+            print("Stack Overflow")
+            self.HLT()
+        self.registers[7] -= 1
+        self.ram[self.registers[7]] = self.registers[self.ram[self.PC + 1]]
         self.PC += 2
+
+    def POP(self):
+        if self.registers[7] > 0xF4:
+            print("Stack Underflow")
+            self.HLT()
+        self.registers[self.ram[self.PC + 1]] = self.ram[self.registers[7]]
+        self.registers[7] += 1
+        self.PC += 2
+
 
     def HLT(self):
         # print("HLT")
         self.running = False
         # self.PC += 1
         sys.exit(0)
+
+    def PRN(self):
+        # print("PRN")
+        value = self.registers[self.ram[self.PC + 1]]
+        print(value)
+        self.PC += 2
+
+    def ADD(self):
+        first_reg = self.ram[self.PC + 1]
+        second_reg = self.ram[self.PC + 2]
+        self.alu("ADD", first_reg, second_reg)
+        self.PC += 3
 
     def MUL(self):
         # print("MUL")
