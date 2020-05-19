@@ -9,19 +9,34 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
+        self.running = True
         self.ram = [0] * 256
-        self.R0 = [0] * 8
-        self.R1 = [0] * 8
-        self.R2 = [0] * 8
-        self.R3 = [0] * 8
-        self.R4 = [0] * 8
-        self.R5 = [0] * 8  # IM-interrupt mask
-        self.R6 = [0] * 8  # IS-interrupt status
-        self.R7 = [0] * 8  # SP-stack pointer
-        self.address = 0  # PC
-        self.IR = [0] * 8
-        self.MAR = 0
-        # FL? Is this also [0] * 8?
+        self.registers = [0] * 8
+        self.FL = [0] * 8
+        # self.R0 = [0] * 8
+        # self.R1 = [0] * 8
+        # self.R2 = [0] * 8
+        # self.R3 = [0] * 8
+        # self.R4 = [0] * 8
+        # self.R5 = [0] * 8  # IM-interrupt mask
+        # self.R6 = [0] * 8  # IS-interrupt status
+        # self.R7 = [0] * 8  # SP-stack pointer
+
+        # self.IR = [0] * 8
+        # self.MAR = 0
+        self.commands = {}
+
+        self.PC = 0  # PC
+        self.registers[7] = 0xF4
+
+        self.commands[0b10000010] = self.LDI
+        self.commands[0b01000111] = self.PRN
+        self.commands[0b00000001] = self.HLT
+        self.commands[0b10100000] = self.ADD
+        self.commands[0b10100010] = self.MUL
+        self.commands[0b01000101] = self.PUSH
+        self.commands[0b01000110] = self.POP
+
 
     def ram_read(self, MAR):
         return self.ram[MAR]
@@ -29,34 +44,48 @@ class CPU:
     def ram_write(self, MAR, MDR):
         self.ram[MAR] = MDR
 
-    def load(self):
+    def load(self, program):
         """Load a program into memory."""
 
         address = 0
+        # print("load")
+        with open(program) as p:
+            data = p.read()
 
+        lines = data.split("\n")
+        instructions = []
+        for line in lines:
+            new_line = line.split("#")[0].strip()
+            if new_line == "":
+                continue
+            new_line = int(new_line, 2)
+            instructions.append(new_line)
         # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
-
-        for instruction in program:
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
+        # print("Program:", program)
+        # print("RAM", self.ram)
+        for instruction in instructions:
             self.ram[address] = instruction
             address += 1
-
+        # print("RAM", self.ram)
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
         if op == "ADD":
-            self.reg[reg_a] += self.reg[reg_b]
+            self.registers[reg_a] += self.registers[reg_b]
         #elif op == "SUB": etc
+        elif op == "MUL":
+            self.registers[reg_a] *= self.registers[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -76,10 +105,88 @@ class CPU:
         ), end='')
 
         for i in range(8):
-            print(" %02X" % self.reg[i], end='')
+            print(" %02X" % self.registers[i], end='')
 
         print()
 
     def run(self):
         """Run the CPU."""
-        pass
+        while self.running:
+            IR = self.ram[self.PC]
+            # print("run", IR)
+            if IR in self.commands:
+                # print("running")
+                self.commands[IR]()
+            # if self.commands[IR] == "LDI":
+            #     register = self.ram[self.PC + 1]
+            #     value = self.ram[self.PC + 2]
+            #     self.registers[register] = value
+            #     self.PC += 3
+            # elif self.commands[IR] == "PRN":
+            #     value = self.registers[self.ram[self.PC + 1]]
+            #     print(value)
+            #     self.PC += 2
+            # elif self.commands[IR] == "HLT":
+            #     self.running = False
+            #     # self.PC += 1
+            #     sys.exit(0)
+            # elif self.commands[IR] == "MUL":
+            #     first_reg = self.ram[self.PC + 1]
+            #     second_reg = self.ram[self.PC + 2]
+            #     self.alu(self.commands[IR], first_reg, second_reg)
+            #     self.PC += 3
+            else:
+                print(f'unknown instruction {IR} at address {self.PC}')
+                sys.exit(1)
+
+    def LDI(self):
+        # print("LDI", self.PC)
+        register = self.ram[self.PC + 1]
+        # print(register)
+        value = self.ram[self.PC + 2]
+        # print(value, self.PC + 2)
+        self.registers[register] = value
+        # print(self.registers[register])
+        self.PC += 3
+
+    def PUSH(self):
+        if self.registers[7] <= self.PC + 1:
+            print("Stack Overflow")
+            self.HLT()
+        self.registers[7] -= 1
+        self.ram[self.registers[7]] = self.registers[self.ram[self.PC + 1]]
+        self.PC += 2
+
+    def POP(self):
+        if self.registers[7] > 0xF4:
+            print("Stack Underflow")
+            self.HLT()
+        self.registers[self.ram[self.PC + 1]] = self.ram[self.registers[7]]
+        self.registers[7] += 1
+        self.PC += 2
+
+
+    def HLT(self):
+        # print("HLT")
+        self.running = False
+        # self.PC += 1
+        sys.exit(0)
+
+    def PRN(self):
+        # print("PRN")
+        value = self.registers[self.ram[self.PC + 1]]
+        print(value)
+        self.PC += 2
+
+    def ADD(self):
+        first_reg = self.ram[self.PC + 1]
+        second_reg = self.ram[self.PC + 2]
+        self.alu("ADD", first_reg, second_reg)
+        self.PC += 3
+
+    def MUL(self):
+        # print("MUL")
+        first_reg = self.ram[self.PC + 1]
+        second_reg = self.ram[self.PC + 2]
+        self.alu("MUL", first_reg, second_reg)
+        self.PC += 3
