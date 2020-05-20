@@ -36,6 +36,7 @@ class CPU:
         self.commands[0b10100010] = self.MUL
         self.commands[0b01000101] = self.PUSH
         self.commands[0b01000110] = self.POP
+        self.commands[0b01010000] = self.CALL
 
 
     def ram_read(self, MAR):
@@ -96,12 +97,12 @@ class CPU:
         """
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
-            self.pc,
+            self.PC,
             #self.fl,
             #self.ie,
-            self.ram_read(self.pc),
-            self.ram_read(self.pc + 1),
-            self.ram_read(self.pc + 2)
+            self.ram_read(self.PC),
+            self.ram_read(self.PC + 1),
+            self.ram_read(self.PC + 2)
         ), end='')
 
         for i in range(8):
@@ -114,7 +115,8 @@ class CPU:
         while self.running:
             IR = self.ram[self.PC]
             # print("run", IR)
-            if IR in self.commands:
+            if IR in self.commands and
+            elif IR in self.commands:
                 # print("running")
                 self.commands[IR]()
             # if self.commands[IR] == "LDI":
@@ -138,6 +140,8 @@ class CPU:
             else:
                 print(f'unknown instruction {IR} at address {self.PC}')
                 sys.exit(1)
+    def sets_pointer(self, op_code):
+        return False
 
     def LDI(self):
         # print("LDI", self.PC)
@@ -165,6 +169,10 @@ class CPU:
         self.registers[7] += 1
         self.PC += 2
 
+    def CALL(self):
+        self.PUSH()
+        self.PC =
+        pass
 
     def HLT(self):
         # print("HLT")
