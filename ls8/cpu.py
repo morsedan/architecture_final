@@ -179,6 +179,7 @@ class CPU:
         return False
 
     def handle_timer(self):
+        self.registers[5] = 0
         self.registers[6] = 0
         print("Before", self.PC, self.registers)
         self.push_thing(self.PC)
@@ -210,6 +211,7 @@ class CPU:
         self.PC = self.ram[self.registers[7]]
         # print(self.PC)
         self.registers[7] += 1
+        self.registers[5] = 1
         print("After", self.PC, self.registers)
 
     def LDI(self):
