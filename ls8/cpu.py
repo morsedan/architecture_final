@@ -2,7 +2,7 @@
 
 import sys
 from datetime import datetime
-import binascii
+
 """
 the spec tells you what numbers = what instructions
 """
@@ -15,11 +15,6 @@ class CPU:
         self.ram = [0] * 256
         self.registers = [0] * 8
         self.FL = [0] * 8
-        # self.R0 = [0] * 8
-        # self.R1 = [0] * 8
-        # self.R2 = [0] * 8
-        # self.R3 = [0] * 8
-        # self.R4 = [0] * 8
         # self.R5 = [0] * 8  # IM-interrupt mask
         # self.R6 = [0] * 8  # IS-interrupt status
         # self.R7 = [0] * 8  # SP-stack pointer
@@ -28,7 +23,7 @@ class CPU:
         # self.MAR = 0
         self.commands = {}
 
-        self.PC = 0  # PC
+        self.PC = 0
         self.registers[7] = 0xF4
 
         self.commands[0b10000010] = self.LDI
@@ -46,6 +41,8 @@ class CPU:
         self.commands[0b00010011] = self.IRET
 
         self.start = datetime.now().timetuple()[5]
+        self.set_start = False
+        self.count = 1
 
     def ram_read(self, MAR):
         return self.ram[MAR]
@@ -55,9 +52,7 @@ class CPU:
 
     def load(self, program):
         """Load a program into memory."""
-
         address = 0
-        # print("load")
         with open(program) as p:
             data = p.read()
 
@@ -69,32 +64,24 @@ class CPU:
                 continue
             new_line = int(new_line, 2)
             instructions.append(new_line)
-        # For now, we've just hardcoded a program:
-
-        # program = [
-        #     # From print8.ls8
-        #     0b10000010, # LDI R0,8
-        #     0b00000000,
-        #     0b00001000,
-        #     0b01000111, # PRN R0
-        #     0b00000000,
-        #     0b00000001, # HLT
-        # ]
-        # print("Program:", program)
-        # print("RAM", self.ram)
         for instruction in instructions:
             self.ram[address] = instruction
             address += 1
-        # print("RAM", self.ram)
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
         if op == "ADD":
             self.registers[reg_a] += self.registers[reg_b]
-        #elif op == "SUB": etc
         elif op == "MUL":
             self.registers[reg_a] *= self.registers[reg_b]
+        elif op == "CMP":
+            if reg_a == reg_b:
+                self.FL = 1
+            elif reg_a < reg_b:
+                self.FL = 4
+            elif reg_a > reg_b:
+                self.FL = 2
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -122,31 +109,27 @@ class CPU:
         """Run the CPU."""
         while self.running:
             now = datetime.now().timetuple()[5]
-            # print(now)
+
             if now > self.start:
                 self.start = now
-                # self.registers[5] = 0b00000001
                 self.registers[6] = 0b00000001
+                if now == 59:
+                    self.set_start = True
+            if now == 0 and self.set_start:
+                self.set_start = False
+                self.start = now - 1
 
             IM = self.registers[5]
             IS = self.registers[6]
             masked_interrupts = IM & IS
-            # print("masked", masked_interrupts)
+
             for i in range(8):
-                # print(bin(IM))
-                # print(bin(IS))
-                # 00000010
                 interrupt_happened = (masked_interrupts >> i) & 1 == 1
-                # print(interrupt_happened)
                 if interrupt_happened and i == 0:
-                    # self.registers[5] = 0
                     self.handle_timer()
-                    # continue
                 elif interrupt_happened and i == 1:
                     print("Whoa!!!")
             IR = self.ram[self.PC]
-            if IR == 0b01010100:
-                print("Calling JMP")
             if IR in self.commands:
                 self.commands[IR]()
             elif IR not in self.commands:
@@ -159,57 +142,38 @@ class CPU:
     def handle_timer(self):
         self.registers[5] = 0
         self.registers[6] = 0
-        # print("Before", self.PC, self.registers)
         self.push_thing(self.PC)
         self.push_thing(self.FL)
         for i in range(7):
-            # print("register", i, self.registers[i])
             self.push_thing(self.registers[i])
+
         address = self.ram[0xF8]
-        # print("ADDRESS", address)
         self.PC = address
-        # print("ram at address", self.ram[address], self.ram[address + 1], self.ram[address+3])
-        # print("Mid", self.PC, self.registers)
-        # print(self.PC, self.registers, self.FL)
-        # print("Interrupt")
-        # self.commands[self.ram[self.PC]]()
-        # self.finish_it()
 
     def push_thing(self, thing):
         self.registers[7] -= 1
         self.ram[self.registers[7]] = thing
 
     def finish_it(self):
-        print("finish_it")
         for i in reversed(range(7)):
             self.registers[i] = self.ram[self.registers[7]]
             self.registers[7] += 1
-            # print("register", i, self.registers[i])
         self.FL = self.ram[self.registers[7]]
         self.registers[7] += 1
         self.PC = self.ram[self.registers[7]]
-        # print(self.PC)
         self.registers[7] += 1
         self.registers[5] = 1
-        # print("After", self.PC, self.registers)
 
     def LDI(self):
-        print("LDI", self.PC)
         register = self.ram[self.PC + 1]
-        # print(register)
         value = self.ram[self.PC + 2]
-        # print(value, self.PC + 2)
         self.registers[register] = value
-        # print(self.registers[register])
         self.PC += 3
 
     def ST(self):
-        print("ST")
         regB = self.registers[self.ram[self.PC + 2]]
         regA = self.registers[self.ram[self.PC + 1]]
-        # print(regA, regB)
         self.ram[regA] = regB
-        # print(self.ram[regA])
         self.PC += 3
 
     def PUSH(self):
@@ -229,47 +193,36 @@ class CPU:
         self.PC += 2
 
     def JMP(self):
-        print("JMP")
         self.PC = self.registers[self.ram[self.PC + 1]]
 
-
     def CALL(self):
-        print("CALL")
         self.registers[7] -= 1
         self.ram[self.registers[7]] = self.PC + 2
         self.PC = self.registers[self.ram[self.PC + 1]]
         pass
 
     def RET(self):
-        print("RET")
         self.PC = self.ram[self.registers[7]]
         self.registers[7] += 1
 
     def IRET(self):
-        print("IRET")
         self.finish_it()
 
     def HLT(self):
-        print("HLT")
         self.running = False
-        # self.PC += 1
         sys.exit(0)
 
     def PRN(self):
-        print("PRN")
         value = self.registers[self.ram[self.PC + 1]]
         print(value)
         self.PC += 2
 
     def PRA(self):
-        print("PRA")
-        # print(self.registers)
         value = self.registers[self.ram[self.PC + 1]]
-        # text = binascii.unhexlify('%x' % value)
         text = chr(value)
         print(text)
+        self.count += 1
         self.PC += 2
-
 
     def ADD(self):
         first_reg = self.ram[self.PC + 1]
@@ -278,8 +231,10 @@ class CPU:
         self.PC += 3
 
     def MUL(self):
-        # print("MUL")
         first_reg = self.ram[self.PC + 1]
         second_reg = self.ram[self.PC + 2]
         self.alu("MUL", first_reg, second_reg)
         self.PC += 3
+
+    def CMP(self):
+        pass
