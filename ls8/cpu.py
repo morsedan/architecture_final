@@ -14,7 +14,7 @@ class CPU:
         self.running = True
         self.ram = [0] * 256
         self.registers = [0] * 8
-        self.FL = [0] * 8
+        self.FL = [0] * 8  # 00000LGE
         # self.R5 = [0] * 8  # IM-interrupt mask
         # self.R6 = [0] * 8  # IS-interrupt status
         # self.R7 = [0] * 8  # SP-stack pointer
@@ -39,6 +39,9 @@ class CPU:
         self.commands[0b01010100] = self.JMP
         self.commands[0b01001000] = self.PRA
         self.commands[0b00010011] = self.IRET
+        self.commands[0b10100111] = self.CMP
+        self.commands[0b01010101] = self.JEQ
+        self.commands[0b01010110] = self.JNE
 
         self.start = datetime.now().timetuple()[5]
         self.set_start = False
@@ -76,12 +79,12 @@ class CPU:
         elif op == "MUL":
             self.registers[reg_a] *= self.registers[reg_b]
         elif op == "CMP":
-            if reg_a == reg_b:
-                self.FL = 1
-            elif reg_a < reg_b:
-                self.FL = 4
-            elif reg_a > reg_b:
-                self.FL = 2
+            if self.registers[reg_a] == self.registers[reg_b]:
+                self.FL = 0b1
+            elif self.registers[reg_a] < self.registers[reg_b]:
+                self.FL = 0b100
+            elif self.registers[reg_a] > self.registers[reg_b]:
+                self.FL = 0b10
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -167,6 +170,7 @@ class CPU:
     def LDI(self):
         register = self.ram[self.PC + 1]
         value = self.ram[self.PC + 2]
+        # print("LDI", register, value)
         self.registers[register] = value
         self.PC += 3
 
@@ -237,4 +241,19 @@ class CPU:
         self.PC += 3
 
     def CMP(self):
-        pass
+        first_reg = self.ram[self.PC + 1]
+        second_reg = self.ram[self.PC + 2]
+        self.alu("CMP", first_reg, second_reg)
+        self.PC += 3
+
+    def JEQ(self):
+        if self.FL == 0b1:
+            self.JMP()
+        else:
+            self.PC += 2
+
+    def JNE(self):
+        if self.FL != 0b1:
+            self.JMP()
+        else:
+            self.PC += 2
